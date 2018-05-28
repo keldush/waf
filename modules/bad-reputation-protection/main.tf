@@ -64,7 +64,7 @@ resource "aws_s3_bucket_object" "bad_reputation_list_parser_zip" {
   etag = "${md5(file("${path.module}/reputation-lists-parser.zip"))}"
 }
 
-#A lambda function to execute the bad reputation parser code
+#A lambda function to execute the bad reputation list parser code
 resource "aws_lambda_function" "bad_reputation_list_parser_function" {
   count = "${var.enable_module}"
   depends_on = ["aws_s3_bucket_object.bad_reputation_list_parser_zip"]
@@ -85,6 +85,7 @@ resource "aws_lambda_function" "bad_reputation_list_parser_function" {
   }
 }
 
+#An hourly CloudWatch event rule
 resource "aws_cloudwatch_event_rule" "bad_reputation_list_parser_function_events_rule" {
   count = "${var.enable_module}"
   depends_on = ["aws_lambda_function.bad_reputation_list_parser_function", "aws_waf_ipset.waf_auto_block_set", "aws_waf_ipset.waf_auto_block_set2"]
@@ -93,6 +94,7 @@ resource "aws_cloudwatch_event_rule" "bad_reputation_list_parser_function_events
   schedule_expression = "rate(1 hour)"
 }
 
+#A CloudWatch event target to pass the array of bad reputation URLs to the bad reputation list parser function. Triggered by the above rule
 resource "aws_cloudwatch_event_target" "bad_reputation_list_parser_cloudwatch_event_target" {
   count = "${var.enable_module}"
   depends_on = ["aws_cloudwatch_event_rule.bad_reputation_list_parser_function_events_rule"]
@@ -102,6 +104,7 @@ resource "aws_cloudwatch_event_target" "bad_reputation_list_parser_cloudwatch_ev
   input = "{\"lists\":[{\"url\":\"https://www.spamhaus.org/drop/drop.txt\"},{\"url\":\"https://check.torproject.org/exit-addresses\",\"prefix\":\"ExitAddress \"},{\"url\":\"https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt\"}],\"ipSetIds\": [\"${aws_waf_ipset.waf_auto_block_set.id}\",\"${aws_waf_ipset.waf_auto_block_set2.id}\"]}"
 }
 
+#Permission for the CloudWatch event to call the bad reputation list parser function
 resource "aws_lambda_permission" "bad_reputation_list_parser_function_permission" {
   count = "${var.enable_module}"
   depends_on = ["aws_lambda_function.bad_reputation_list_parser_function", "aws_cloudwatch_event_rule.bad_reputation_list_parser_function_events_rule"]

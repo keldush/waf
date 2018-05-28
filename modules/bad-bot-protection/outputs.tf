@@ -5,5 +5,5 @@ output "bad_bot_protection_waf_rule_id" {
 
 output "bad_bad_protection_honeypot_endpoint_url" {
   description = "The honeypot endpoint URL which can be embedded in to web content"
-  value = "${aws_api_gateway_deployment.bad_bot_api_gateway_prod_stage.invoke_url}"
+  value = "${aws_api_gateway_deployment.example.*.invoke_url}"
 }

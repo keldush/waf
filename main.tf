@@ -32,6 +32,10 @@ module "bad_request_protection" {
   source = "./modules/bad-request-protection"
 }
 
+module "request_size_protection" {
+  source = "./modules/request-size-protection"
+}
+
 #An empty whitelist WAF rule if one isn't set
 resource "aws_waf_rule" "waf_empty_whitelist" {
   count = "${var.manual_whitelist_rule_id == "" ? 1 : 0}"
@@ -118,6 +122,14 @@ resource "aws_waf_web_acl" "waf_web_acl" {
     }
     priority = 70
     rule_id = "${module.bad_bot_protection.bad_bot_protection_waf_rule_id}"
+  }
+
+  rules {
+    "action" {
+      type = "BLOCK"
+    }
+    priority = 80
+    rule_id = "${module.request_size_protection.request_size_protection_waf_rule_id}"
   }
 
   rules {

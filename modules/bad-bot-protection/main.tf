@@ -1,7 +1,6 @@
 #The current AWS caller identity and region so they can be referred to later
 data "aws_caller_identity" "current" { }
-data "aws_region" "current" {}
-
+data "aws_region" "current" { }
 
 #The IP set which the bad bot handler lambda will update
 resource "aws_waf_ipset" "waf_auto_block_set" {
@@ -58,94 +57,9 @@ resource "aws_lambda_function" "bad_bot_handler_function" {
     variables = {
       IP_SET_ID_BAD_BOT = "${aws_waf_ipset.waf_auto_block_set.id}"
       LOG_TYPE = "cloudfront"
-      REGION = "${data.aws_region.current}"
+      REGION = "${data.aws_region.current.name}"
       SEND_ANONYMOUS_USAGE_DATA = "${var.send_anonymous_usage}"
       UUID = "${uuid()}"
     }
   }
-}
-
-#A lambda permission for the bad bot handler lambda function
-resource "aws_lambda_permission" "bad_bot_handler_function_permission" {
-  count = "${var.enable_module}"
-  statement_id = "AllowExecutionFromCloudWatch"
-  action = "lambda:*"
-  function_name = "${aws_lambda_function.bad_bot_handler_function.arn}"
-  principal = "apigateway.amazonaws.com"
-}
-
-#An API gateway to lure in the bad bots
-resource "aws_api_gateway_rest_api" "bad_bot_api_gateway" {
-  count = "${var.enable_module}"
-  name = "Bad Bot API Gateway"
-  description = "API Gateway to lure bad bots"
-}
-
-#A resource for the API gateway
-resource "aws_api_gateway_resource" "bad_bot_api_gateway_resource" {
-  count = "${var.enable_module}"
-  rest_api_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.id}"
-  parent_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.root_resource_id}"
-  path_part = "waf"
-}
-
-#A GET method for the API gateway
-resource "aws_api_gateway_method" "bad_bot_api_gateway_method" {
-  count = "${var.enable_module}"
-  depends_on = ["aws_lambda_function.bad_bot_handler_function", "aws_lambda_permission.bad_bot_handler_function_permission", "aws_api_gateway_rest_api.bad_bot_api_gateway"]
-  rest_api_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.id}"
-  resource_id = "${aws_api_gateway_resource.bad_bot_api_gateway_resource.id}"
-  http_method = "GET"
-  authorization = "NONE"
-  request_parameters = { "method.request.header.X-Forwarded-For" = false }
-}
-
-#The 200 OK response for the API gateway method
-resource "aws_api_gateway_method_response" "bad_bot_api_gateway_method_response_OK" {
-  count = "${var.enable_module}"
-  rest_api_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.id}"
-  resource_id = "${aws_api_gateway_resource.bad_bot_api_gateway_resource.id}"
-  http_method = "${aws_api_gateway_method.bad_bot_api_gateway_method.http_method}"
-  status_code = "200"
-}
-
-#An API gateway inegration to POST to the lambda
-resource "aws_api_gateway_integration" "bad_bot_api_gateway_integration" {
-  count = "${var.enable_module}"
-  depends_on = ["aws_api_gateway_method.bad_bot_api_gateway_method"]
-  rest_api_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.id}"
-  resource_id = "${aws_api_gateway_resource.bad_bot_api_gateway_resource.id}"
-  http_method = "${aws_api_gateway_method.bad_bot_api_gateway_method.http_method}"
-  integration_http_method = "POST"
-  uri = "arn:aws:apigateway:${data.aws_region.current}:lambda:path/2015-03-31/functions/${aws_lambda_function.bad_bot_handler_function.arn}/invocations"
-  type = "AWS"
-  request_templates = {
-    "application/json" = "{\n    \"source_ip\" : \"$input.params('X-Forwarded-For')\",\n    \"user_agent\" : \"$input.params('User-Agent')\",\n    \"bad_bot_ip_set\" : \"${aws_waf_ipset.waf_auto_block_set.id}\"\n}"
-  }
-}
-
-#API gateway integration response
-resource "aws_api_gateway_integration_response" "bad_bot_api_gateway_integration_response" {
-  count = "${var.enable_module}"
-  rest_api_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.id}"
-  resource_id = "${aws_api_gateway_resource.bad_bot_api_gateway_resource.id}"
-  http_method = "${aws_api_gateway_integration.bad_bot_api_gateway_integration.http_method}"
-  status_code = "${aws_api_gateway_method_response.bad_bot_api_gateway_method_response_OK.status_code}"
-  response_templates = { "application/json" = "" }
-}
-
-resource "aws_api_gateway_deployment" "bad_bot_api_gateway_deployment_stage" {
-  count = "${var.enable_module}"
-  depends_on = ["aws_api_gateway_method.bad_bot_api_gateway_method"]
-  rest_api_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.id}"
-  stage_name = "DeploymentStage"
-  description = "Deployment Stage"
-}
-
-resource "aws_api_gateway_deployment" "bad_bot_api_gateway_prod_stage" {
-  count = "${var.enable_module}"
-  depends_on = ["aws_api_gateway_deployment.bad_bot_api_gateway_deployment"]
-  rest_api_id = "${aws_api_gateway_rest_api.bad_bot_api_gateway.id}"
-  stage_name = "ProdStage"
-  description = "Production Stage"
 }

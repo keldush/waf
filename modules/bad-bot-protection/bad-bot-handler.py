@@ -225,7 +225,7 @@ def lambda_handler(event, context):
         waf_update_ip_set(environ['IP_SET_ID_BAD_BOT'], source_ip)
 
         message = {}
-        message['message'] = "[%s] Thanks for the visit."%source_ip
+        message['message'] = "[%s] Thanks you for your interest."%source_ip
         response['body'] = json.dumps(message)
 
         send_anonymous_usage_data()

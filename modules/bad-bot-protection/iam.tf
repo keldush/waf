@@ -57,8 +57,7 @@ resource "aws_iam_role_policy" "bad_bot_handler_waf_get_update_ip_set_iam_policy
       ],
       "Effect": "Allow",
       "Resource": [
-          "arn:aws:waf::${data.aws_caller_identity.current.account_id}:ipset/${aws_waf_ipset.waf_auto_block_set.id}",
-          "arn:aws:waf::${data.aws_caller_identity.current.account_id}:ipset/${aws_waf_ipset.waf_auto_block_set2.id}"
+          "arn:aws:waf::${data.aws_caller_identity.current.account_id}:ipset/${aws_waf_ipset.waf_auto_block_set.id}"
       ]
     }
   ]

@@ -70,7 +70,7 @@ resource "aws_lambda_function" "log_parser_function" {
   }
 }
 
-#A lambda permission for the log parser lambda function
+#Permission for S3 to call the log parser function
 resource "aws_lambda_permission" "log_parser_function_permission" {
   count = "${var.enable_module}"
   statement_id = "AllowExecutionFromS3Bucket"
